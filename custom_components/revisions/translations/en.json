@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Révisions",
+        "description": "Direct address of the Révisions server (IP and port, e.g. http://192.168.1.20:8010), not through a proxy. For the bonus / penalty buttons to work, Home Assistant's IP address must be listed in HA_IPS (revisions.conf).",
+        "data": {
+          "url": "Révisions server address"
+        }
+      }
+    },
+    "error": {
+      "injoignable": "Cannot reach this server. Check the address and port.",
+      "pas_revisions": "This server answers but is not Révisions (or too old: 0.5.1 minimum)."
+    },
+    "abort": {
+      "already_configured": "This Révisions server is already set up."
+    }
+  }
+}

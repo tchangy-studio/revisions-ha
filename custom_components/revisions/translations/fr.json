@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Révisions",
+        "description": "Adresse directe du serveur Révisions (IP et port, par ex. http://192.168.1.20:8010), pas une adresse qui passe par un proxy. Pour que les boutons bonus / malus marchent, l'adresse IP de Home Assistant doit être dans HA_IPS (revisions.conf).",
+        "data": {
+          "url": "Adresse du serveur Révisions"
+        }
+      }
+    },
+    "error": {
+      "injoignable": "Impossible de joindre ce serveur. Vérifie l'adresse et le port.",
+      "pas_revisions": "Ce serveur répond, mais ce n'est pas Révisions (ou une version trop ancienne : 0.5.1 minimum)."
+    },
+    "abort": {
+      "already_configured": "Ce serveur Révisions est déjà ajouté."
+    }
+  }
+}
