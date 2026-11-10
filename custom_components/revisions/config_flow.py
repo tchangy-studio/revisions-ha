@@ -1,38 +1,76 @@
-"""Écran de configuration : l'adresse du serveur Révisions."""
+"""Écrans de configuration : adresse du serveur Révisions et jeton (espace parents → onglet Home Assistant)."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
-import aiohttp
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-from homeassistant.const import CONF_URL
+from homeassistant.const import CONF_TOKEN, CONF_URL
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 
-from . import RevisionsApi
+from . import IpRefusee, JetonRefuse, RevisionsApi
 from .const import DOMAIN
+
+CHAMP_JETON = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+
+def _url(brute: str) -> str:
+    url = brute.strip().rstrip("/")
+    return url if url.startswith(("http://", "https://")) else "http://" + url
 
 
 class RevisionsConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
+    async def _tester(self, url: str, jeton: str) -> str | None:
+        try:
+            donnees = await RevisionsApi(async_get_clientsession(self.hass), url, jeton).lire()
+        except JetonRefuse:
+            return "jeton"
+        except IpRefusee:
+            return "ip"
+        except HomeAssistantError as err:
+            return "pas_revisions" if "Révisions :" in str(err) else "injoignable"
+        return None if isinstance(donnees, dict) and "enfants" in donnees else "pas_revisions"
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         erreurs: dict[str, str] = {}
         if user_input is not None:
-            url = user_input[CONF_URL].strip().rstrip("/")
-            if not url.startswith(("http://", "https://")):
-                url = "http://" + url
+            url, jeton = _url(user_input[CONF_URL]), user_input.get(CONF_TOKEN, "").strip()
             await self.async_set_unique_id(url.lower())
             self._abort_if_unique_id_configured()
-            try:
-                donnees = await RevisionsApi(async_get_clientsession(self.hass), url).lire()
-                if "enfants" not in donnees:
-                    raise ValueError
-            except (aiohttp.ClientError, TimeoutError):
-                erreurs["base"] = "injoignable"
-            except (ValueError, KeyError, aiohttp.ContentTypeError):
-                erreurs["base"] = "pas_revisions"
-            else:
-                return self.async_create_entry(title="Révisions", data={CONF_URL: url})
-        return self.async_show_form(step_id="user", data_schema=vol.Schema({vol.Required(CONF_URL, default="http://"): str}), errors=erreurs)
+            if not (erreur := await self._tester(url, jeton)):
+                return self.async_create_entry(title="Révisions", data={CONF_URL: url, CONF_TOKEN: jeton})
+            erreurs["base"] = erreur
+        schema = vol.Schema({vol.Required(CONF_URL, default="http://"): str, vol.Required(CONF_TOKEN): CHAMP_JETON})
+        return self.async_show_form(step_id="user", data_schema=schema, errors=erreurs)
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
+        """Révisions refuse le jeton (nouvelle version qui l'exige, ou jeton changé dans l'espace parents)."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        entree = self._get_reauth_entry()
+        erreurs: dict[str, str] = {}
+        if user_input is not None:
+            jeton = user_input[CONF_TOKEN].strip()
+            if not (erreur := await self._tester(entree.data[CONF_URL], jeton)):
+                return self.async_update_reload_and_abort(entree, data_updates={CONF_TOKEN: jeton})
+            erreurs["base"] = erreur
+        return self.async_show_form(step_id="reauth_confirm", data_schema=vol.Schema({vol.Required(CONF_TOKEN): CHAMP_JETON}),
+                                    errors=erreurs, description_placeholders={"url": entree.data[CONF_URL]})
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        entree = self._get_reconfigure_entry()
+        erreurs: dict[str, str] = {}
+        if user_input is not None:
+            url, jeton = _url(user_input[CONF_URL]), user_input.get(CONF_TOKEN, "").strip()
+            if not (erreur := await self._tester(url, jeton)):
+                return self.async_update_reload_and_abort(entree, data_updates={CONF_URL: url, CONF_TOKEN: jeton})
+            erreurs["base"] = erreur
+        schema = vol.Schema({vol.Required(CONF_URL, default=entree.data[CONF_URL]): str, vol.Required(CONF_TOKEN): CHAMP_JETON})
+        return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=erreurs)

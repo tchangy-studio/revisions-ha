@@ -3,18 +3,38 @@
     "step": {
       "user": {
         "title": "Révisions",
-        "description": "Direct address of the Révisions server (IP and port, e.g. http://192.168.1.20:8010), not through a proxy. For the bonus / penalty buttons to work, Home Assistant's IP address must be listed in HA_IPS (revisions.conf).",
+        "description": "Direct address of the Révisions server (IP and port, e.g. http://192.168.1.20:8010), not an address going through a proxy, and the token shown in the Révisions parents area (🏠 Home Assistant tab). Home Assistant's IP must also be listed in HA_IPS (revisions.conf).",
         "data": {
-          "url": "Révisions server address"
+          "url": "Révisions server address",
+          "token": "Token (parents area → Home Assistant)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Révisions: token update needed",
+        "description": "Révisions ({url}) refuses the current token: a new Révisions version requires it, or it was changed in the parents area. Paste the token from the parents area (🏠 Home Assistant tab).",
+        "data": {
+          "token": "Token"
+        }
+      },
+      "reconfigure": {
+        "title": "Révisions",
+        "description": "Direct address of the Révisions server and the token from the parents area.",
+        "data": {
+          "url": "Révisions server address",
+          "token": "Token"
         }
       }
     },
     "error": {
-      "injoignable": "Cannot reach this server. Check the address and port.",
-      "pas_revisions": "This server answers but is not Révisions (or too old: 0.5.1 minimum)."
+      "injoignable": "Cannot reach this server. Check address and port.",
+      "pas_revisions": "This server answers, but it is not Révisions (or too old: 0.6.0 minimum).",
+      "jeton": "Token refused: copy the one from the Révisions parents area (🏠 Home Assistant tab).",
+      "ip": "Révisions refuses Home Assistant: add its IP to HA_IPS (revisions.conf), then restart Révisions."
     },
     "abort": {
-      "already_configured": "This Révisions server is already set up."
+      "already_configured": "This Révisions server is already set up.",
+      "reauth_successful": "Token updated.",
+      "reconfigure_successful": "Settings updated."
     }
   }
 }

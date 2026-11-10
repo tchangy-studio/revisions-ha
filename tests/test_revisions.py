@@ -28,9 +28,9 @@ async def installer(hass, aioclient_mock):
     serveur(aioclient_mock)
     r = await hass.config_entries.flow.async_init("revisions", context={"source": config_entries.SOURCE_USER})
     assert r["type"] == "form"
-    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"url": "10.0.0.86:8010/"})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"url": "10.0.0.86:8010/", "token": "jeton-secret"})
     assert r["type"] == "create_entry", r
-    assert r["data"]["url"] == URL
+    assert r["data"]["url"] == URL and r["data"]["token"] == "jeton-secret"
     await hass.async_block_till_done()
     return r["result"]
 
@@ -90,5 +90,32 @@ async def test_achat_evenement_et_lot_donne(hass: HomeAssistant, aioclient_mock)
 async def test_flux_erreurs(hass: HomeAssistant, aioclient_mock):
     aioclient_mock.get(URL + "/api/ha", status=404)
     r = await hass.config_entries.flow.async_init("revisions", context={"source": config_entries.SOURCE_USER})
-    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"url": URL})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"url": URL, "token": "x"})
     assert r["type"] == "form" and r["errors"]["base"] in ("injoignable", "pas_revisions")
+
+
+async def test_jeton_envoye_et_erreurs_claires(hass: HomeAssistant, aioclient_mock):
+    await installer(hass, aioclient_mock)
+    entetes = [c[3] for c in aioclient_mock.mock_calls if str(c[1]).endswith("/api/ha")]
+    assert entetes and all(h.get("Authorization") == "Bearer jeton-secret" for h in entetes)
+    # à l'installation : jeton faux et IP non autorisée donnent chacun leur message
+    for statut, attendu in ((401, "jeton"), (403, "ip")):
+        aioclient_mock.clear_requests()
+        aioclient_mock.get(f"http://10.0.0.{statut % 250}:8010/api/ha", status=statut, json={"detail": "refus"})
+        r = await hass.config_entries.flow.async_init("revisions", context={"source": config_entries.SOURCE_USER})
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {"url": f"http://10.0.0.{statut % 250}:8010", "token": "x"})
+        assert r.get("errors") == {"base": attendu}, r
+
+
+async def test_jeton_change_redemande(hass: HomeAssistant, aioclient_mock):
+    entry = await installer(hass, aioclient_mock)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(URL + "/api/ha", status=401, json={"detail": "jeton Home Assistant absent ou incorrect"})
+    await entry.runtime_data.async_refresh(); await hass.async_block_till_done()
+    flux = [f for f in hass.config_entries.flow.async_progress() if f["context"]["source"] == "reauth"]
+    assert len(flux) == 1
+    r = await hass.config_entries.flow.async_configure(flux[0]["flow_id"], {"token": "faux"})
+    assert r["errors"] == {"base": "jeton"}
+    serveur(aioclient_mock)
+    r = await hass.config_entries.flow.async_configure(flux[0]["flow_id"], {"token": "nouveau"})
+    assert r["type"] == "abort" and r["reason"] == "reauth_successful" and entry.data["token"] == "nouveau"

@@ -1,18 +1,30 @@
 # Révisions pour Home Assistant
 
 Intégration Home Assistant de **Révisions**, l'appli de révisions des enfants (tirelire, récré, bonus / malus).
-Elle ne contient que le lien avec Home Assistant : il faut un serveur Révisions (version 0.5.1 ou plus) sur le réseau de la maison.
+Elle ne contient que le lien avec Home Assistant : il faut un serveur Révisions (version 0.6.0 ou plus) sur le réseau de la maison.
 
 🚧 Version 0.x : en construction.
 
-## Installation (HACS)
+## Installation (Marketplace / HACS)
 
-1. HACS → ⋮ → **Dépôts personnalisés** → adresse `https://github.com/tchangy-studio/revisions-ha`, catégorie **Intégration**.
-2. Cherche **Révisions** dans HACS → Télécharger, puis redémarre Home Assistant.
-3. Paramètres → Appareils et services → Ajouter une intégration → **Révisions** → adresse du serveur, par ex. `http://192.168.1.20:8010`.
+1. Dans Révisions : mets l'adresse IP de Home Assistant dans `HA_IPS` du fichier `revisions.conf`, puis `docker compose up -d`.
+2. Dans Home Assistant : **Paramètres → Marketplace** (ou HACS) → ⋮ → **Dépôts personnalisés** →
+   `https://github.com/tchangy-studio/revisions-ha`, catégorie **Intégration** → **Révisions** → installer, puis redémarre Home Assistant.
+3. Paramètres → Appareils et services → Ajouter une intégration → **Révisions** :
+   - l'adresse **directe** du serveur (IP et port, par ex. `http://192.168.1.20:8010`), pas une adresse qui passe par un proxy ;
+   - le **jeton** : dans Révisions, espace parents → onglet 🏠 Home Assistant → Afficher / Copier.
 
-Utilise l'adresse **directe** du serveur (IP et port), pas une adresse qui passe par un proxy.
-Pour que les boutons de bonus / malus soient acceptés, l'adresse IP de Home Assistant doit être dans `HA_IPS` du fichier `revisions.conf` de Révisions.
+## Sécurité
+
+Révisions n'accepte Home Assistant que s'il a **la bonne adresse IP et le bon jeton** : un autre appareil de la maison ne peut ni lire
+les données des enfants ni donner des points. Si le jeton change (bouton « Nouveau jeton » dans l'espace parents), Home Assistant
+affiche une demande de réauthentification : il suffit de coller le nouveau. Les messages d'erreur disent ce qui manque
+(jeton refusé, ou adresse IP absente de `HA_IPS`). Paramètres → Appareils et services → Révisions → ⋮ → **Reconfigurer** permet de
+changer l'adresse ou le jeton.
+
+## Mises à jour
+
+Une nouvelle version apparaît dans **Paramètres → Mises à jour** (entité `update.revisions`) : installer, puis redémarrer Home Assistant.
 
 ## Ce que ça crée
 

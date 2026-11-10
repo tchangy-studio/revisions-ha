@@ -3,18 +3,38 @@
     "step": {
       "user": {
         "title": "Révisions",
-        "description": "Adresse directe du serveur Révisions (IP et port, par ex. http://192.168.1.20:8010), pas une adresse qui passe par un proxy. Pour que les boutons bonus / malus marchent, l'adresse IP de Home Assistant doit être dans HA_IPS (revisions.conf).",
+        "description": "Adresse directe du serveur Révisions (IP et port, par ex. http://192.168.1.20:8010), pas une adresse qui passe par un proxy, et le jeton affiché dans l'espace parents de Révisions (onglet 🏠 Home Assistant). L'adresse IP de Home Assistant doit aussi être dans HA_IPS (revisions.conf).",
         "data": {
-          "url": "Adresse du serveur Révisions"
+          "url": "Adresse du serveur Révisions",
+          "token": "Jeton (espace parents → Home Assistant)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Révisions : jeton à mettre à jour",
+        "description": "Révisions ({url}) refuse le jeton actuel : nouvelle version de Révisions qui l'exige, ou jeton changé dans l'espace parents. Colle le jeton de l'espace parents (onglet 🏠 Home Assistant).",
+        "data": {
+          "token": "Jeton"
+        }
+      },
+      "reconfigure": {
+        "title": "Révisions",
+        "description": "Adresse directe du serveur Révisions et jeton de l'espace parents.",
+        "data": {
+          "url": "Adresse du serveur Révisions",
+          "token": "Jeton"
         }
       }
     },
     "error": {
       "injoignable": "Impossible de joindre ce serveur. Vérifie l'adresse et le port.",
-      "pas_revisions": "Ce serveur répond, mais ce n'est pas Révisions (ou une version trop ancienne : 0.5.1 minimum)."
+      "pas_revisions": "Ce serveur répond, mais ce n'est pas Révisions (ou une version trop ancienne : 0.6.0 minimum).",
+      "jeton": "Jeton refusé : copie celui de l'espace parents de Révisions (onglet 🏠 Home Assistant).",
+      "ip": "Révisions refuse Home Assistant : ajoute son adresse IP dans HA_IPS (revisions.conf), puis redémarre Révisions."
     },
     "abort": {
-      "already_configured": "Ce serveur Révisions est déjà ajouté."
+      "already_configured": "Ce serveur Révisions est déjà ajouté.",
+      "reauth_successful": "Jeton mis à jour.",
+      "reconfigure_successful": "Réglages mis à jour."
     }
   }
 }
