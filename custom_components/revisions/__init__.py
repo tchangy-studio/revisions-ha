@@ -9,12 +9,13 @@ import aiohttp
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_TOKEN, CONF_URL, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, EVENT_ACHAT
+from .const import DOMAIN, EVENT_ACHAT, FABRICANT
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
@@ -108,8 +109,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: RevisionsConfigEntry) ->
     coordinator = RevisionsCoordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    registre = dr.async_get(hass)
+    maison = registre.async_get_or_create(config_entry_id=entry.entry_id, identifiers={(DOMAIN, entry.entry_id)}, name="Révisions",
+                                          manufacturer=FABRICANT, model="Appli de révisions", configuration_url=api.url + "/parents")
+
+    @callback
+    def relier() -> None:
+        """Range l'appareil de chaque enfant sous l'appareil « Révisions » (via_device_id, à la place de l'ancien via_device)."""
+        for appareil in dr.async_entries_for_config_entry(registre, entry.entry_id):
+            if appareil.id != maison.id and appareil.via_device_id != maison.id:
+                registre.async_update_device(appareil.id, via_device_id=maison.id)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    relier()
+    entry.async_on_unload(coordinator.async_add_listener(relier))   # joueur ajouté plus tard
     return True
+
+
+async def async_remove_config_entry_device(hass: HomeAssistant, entry: RevisionsConfigEntry, appareil: dr.DeviceEntry) -> bool:
+    """Supprimer l'appareil d'un joueur qui n'existe plus dans Révisions (Paramètres → Appareils → ⋮ → Supprimer).
+    Un joueur encore présent, ou l'appareil « Révisions » lui-même, ne peut pas être supprimé."""
+    ids = {i[1] for i in appareil.identifiers if i[0] == DOMAIN}
+    encore_la = {entry.entry_id} | {f"{entry.entry_id}_{k}" for k in entry.runtime_data.enfants()}
+    return not ids & encore_la
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: RevisionsConfigEntry) -> bool:

@@ -19,7 +19,7 @@ class RevisionsEntity(CoordinatorEntity[RevisionsCoordinator]):
         if enfant:
             nom = coordinator.enfants().get(enfant, {}).get("nom", enfant)
             self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry_id}_{enfant}")}, name=f"Révisions {nom}",
-                                                manufacturer=FABRICANT, model="Joueur", via_device=(DOMAIN, entry_id))
+                                                manufacturer=FABRICANT, model="Joueur")
         else:
             self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)}, name="Révisions", manufacturer=FABRICANT,
                                                 model="Appli de révisions", configuration_url=coordinator.api.url + "/parents")

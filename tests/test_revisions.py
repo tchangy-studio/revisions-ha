@@ -119,3 +119,36 @@ async def test_jeton_change_redemande(hass: HomeAssistant, aioclient_mock):
     serveur(aioclient_mock)
     r = await hass.config_entries.flow.async_configure(flux[0]["flow_id"], {"token": "nouveau"})
     assert r["type"] == "abort" and r["reason"] == "reauth_successful" and entry.data["token"] == "nouveau"
+
+
+async def test_appareils_ranges_sous_revisions(hass: HomeAssistant, aioclient_mock):
+    """Chaque enfant est rangé sous l'appareil « Révisions », y compris un joueur ajouté plus tard (sans via_device, déprécié)."""
+    from homeassistant.helpers import device_registry as dr
+    entry = await installer(hass, aioclient_mock)
+    reg = dr.async_get(hass)
+    maison = reg.async_get_device(identifiers={("revisions", entry.entry_id)})
+    raph = reg.async_get_device(identifiers={("revisions", f"{entry.entry_id}_raph")})
+    assert maison and raph and raph.via_device_id == maison.id
+    serveur(aioclient_mock, ha={**HA, "enfants": {**HA["enfants"], "zoe": {**ENFANT, "nom": "Zoé"}}})
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=122))
+    await hass.async_block_till_done()
+    zoe = reg.async_get_device(identifiers={("revisions", f"{entry.entry_id}_zoe")})
+    assert zoe and zoe.via_device_id == maison.id
+
+
+async def test_supprimer_un_joueur_parti(hass: HomeAssistant, aioclient_mock):
+    """L'appareil d'un joueur supprimé dans Révisions peut être retiré de Home Assistant ; pas celui d'un joueur présent."""
+    from homeassistant.helpers import device_registry as dr
+    from custom_components.revisions import async_remove_config_entry_device
+    entry = await installer(hass, aioclient_mock)
+    reg = dr.async_get(hass)
+    maison = reg.async_get_device(identifiers={("revisions", entry.entry_id)})
+    raph = reg.async_get_device(identifiers={("revisions", f"{entry.entry_id}_raph")})
+    assert not await async_remove_config_entry_device(hass, entry, raph)
+    assert not await async_remove_config_entry_device(hass, entry, maison)
+    serveur(aioclient_mock, ha={**HA, "enfants": {"papa": HA["enfants"]["papa"]}})
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
+    await hass.async_block_till_done()
+    assert await async_remove_config_entry_device(hass, entry, raph)
