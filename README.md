@@ -123,6 +123,8 @@ et chaque version est relue et testée à la maison avant d'être publiée.
 
 Une idée, un souci ? Ouvre une [issue](https://github.com/tchangy-studio/revisions-ha/issues).
 
+Et si ça te rend service, un café fait toujours plaisir : [ko-fi.com/tchangystudio](https://ko-fi.com/tchangystudio) ☕ (à ton bon cœur, rien d’obligatoire).
+
 ## Licence
 
 [MIT](LICENSE) : tu peux réutiliser, modifier et partager ce code, en gardant la mention de Tchangy Studio.
