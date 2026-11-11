@@ -24,6 +24,8 @@ Son dépôt n'est pas encore public : voici un avant-goût.
   tables, opérations posées, fractions, heure, monnaie, mesures, conjugaison, homophones, anglais…
 - **XP et niveaux** : on progresse en révisant, avec un plafond par jour pour ne pas y passer la soirée.
 - **La récré** : des mini-jeux qui s'ouvrent quand l'objectif du jour est atteint.
+- **Du temps d'écran limité** : une durée par jour et par enfant, des heures d'ouverture, et un code secret en images
+  pour que chacun n'ouvre que son profil (même sur une tablette partagée).
 - **Des pièces et une boutique** remplie par les parents : temps d'écran, petits jouets, tirage au sort…
 - **Un espace parents** protégé par un code : joueurs, barème, boutique, et des **bonus / malus** du quotidien (« Met la table », « N'écoute pas »).
 - **Tout reste à la maison** : un conteneur Docker sur le réseau local, pas de compte, pas d'abonnement, pas de publicité,
@@ -63,6 +65,10 @@ Un appareil par enfant (les comptes de test sont ignorés) :
 | `sensor.revisions_<prénom>_revisions_du_jour` | XP de révisions du jour (maximum et objectif de récré en attributs) |
 | `sensor.revisions_<prénom>_recre` | `fermée`, `ouverte` ou `bonus` (minutes restantes en attribut) |
 | `sensor.revisions_<prénom>_niveau` | niveau de progression |
+| `sensor.revisions_<prénom>_temps_aujourd_hui` | minutes passées dans l'appli aujourd'hui (maximum, restant, profil bloqué en attributs) |
+| `sensor.revisions_<prénom>_temps_restant` | minutes qui restent aujourd'hui (vide s'il n'y a pas de limite) |
+| `number.revisions_<prénom>_temps_par_jour` | temps par jour de cet enfant, en minutes (0 = sans limite) |
+| `button.revisions_<prénom>_15_minutes_de_plus` | 15 minutes de plus pour aujourd'hui |
 | `button.revisions_<prénom>_<comportement>` | un bouton par comportement réglé dans l'espace parents (bonus ou malus) |
 
 Et un appareil **Révisions** :
@@ -73,7 +79,8 @@ Et un appareil **Révisions** :
 | `button.revisions_lot_le_plus_ancien_donne` | marque le plus ancien achat comme donné |
 
 Un enfant ou un comportement ajouté dans Révisions apparaît tout seul dans Home Assistant (en moins d'une minute) ;
-un comportement supprimé rend son bouton indisponible.
+un comportement supprimé rend son bouton indisponible. Le temps d'utilisation demande Révisions 0.7 ou plus récent
+(sinon ces entités restent vides).
 
 ## Être prévenu quand un enfant achète un lot
 
@@ -90,9 +97,36 @@ actions:
       message: "{{ trigger.event.data.enfant_nom }} a acheté {{ trigger.event.data.ico }} {{ trigger.event.data.nom }} : à préparer !"
 ```
 
+## Être prévenu quand un profil est bloqué
+
+Après 3 erreurs de code secret, Révisions bloque le profil 5 minutes, et l'intégration envoie l'événement
+`revisions_profil_bloque` (`enfant_nom`, `blocages_jour`) : quelqu'un a peut-être essayé d'ouvrir le profil d'un autre.
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: revisions_profil_bloque
+actions:
+  - action: notify.mobile_app_mon_telephone
+    data:
+      title: "🔐 Révisions"
+      message: "Quelqu'un a essayé d'ouvrir le profil de {{ trigger.event.data.enfant_nom }} (code faux 3 fois)."
+```
+
 ## Tableau de bord
 
-Les boutons s'utilisent comme n'importe quelle entité. Par exemple une tuile verte avec confirmation :
+**En un clic** : Paramètres → Appareils et services → Révisions → **Configurer** → « Afficher dans la barre latérale ».
+Le tableau « Révisions » apparaît : une colonne par joueur (révisions du jour, récré, tirelire, dernier événement, boutons
+bonus et malus avec confirmation), plus les lots à préparer et le classement de la semaine. Il se modifie comme n'importe
+quel tableau de bord. Il **se met à jour tout seul** quand un joueur ou un bonus / malus change (et après une mise à jour
+de l'intégration), tant que tu ne l'as pas modifié à la main ; dans ce cas, Configurer → « Refaire » le remplace.
+
+Home Assistant n'offre pas de moyen officiel pour qu'une intégration crée un tableau de bord : si ce bouton ne marche plus
+après une mise à jour, il existe un **modèle à coller**, `custom_components/revisions/tableau.yaml` (cartes de base
+seulement, les joueurs sont trouvés tout seuls) : Paramètres → Tableaux de bord → Ajouter → Partir de zéro, puis ⋮ → Modifier
+→ ⋮ → Éditeur de configuration brute, et coller.
+
+Les boutons s'utilisent aussi comme n'importe quelle entité. Par exemple une tuile verte avec confirmation :
 
 ```yaml
 type: tile

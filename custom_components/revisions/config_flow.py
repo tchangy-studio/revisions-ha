@@ -6,13 +6,15 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_TOKEN, CONF_URL
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
+from homeassistant.core import callback
+from homeassistant.helpers.selector import (SelectSelector, SelectSelectorConfig, TextSelector, TextSelectorConfig,
+                                            TextSelectorType)
 
-from . import IpRefusee, JetonRefuse, RevisionsApi
+from . import IpRefusee, JetonRefuse, RevisionsApi, tableau
 from .const import DOMAIN
 
 CHAMP_JETON = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
@@ -74,3 +76,25 @@ class RevisionsConfigFlow(ConfigFlow, domain=DOMAIN):
             erreurs["base"] = erreur
         schema = vol.Schema({vol.Required(CONF_URL, default=entree.data[CONF_URL]): str, vol.Required(CONF_TOKEN): CHAMP_JETON})
         return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=erreurs)
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return RevisionsOptionsFlow()
+
+
+class RevisionsOptionsFlow(OptionsFlow):
+    """Configurer → le tableau de bord « Révisions » : l'afficher, le refaire (nouveaux joueurs, bonus ou malus), le retirer."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        actuel = bool(self.config_entry.options.get("tableau"))
+        schema = vol.Schema({vol.Required("action", default="refaire" if actuel else "afficher"): SelectSelector(
+            SelectSelectorConfig(options=["afficher", "refaire", "retirer"], translation_key="action_tableau"))})
+        if user_input is not None:
+            if user_input["action"] == "retirer":
+                tableau.masquer(self.hass)
+                return self.async_create_entry(data={**self.config_entry.options, "tableau": False})
+            if not await tableau.afficher(self.hass, self.config_entry, "Révisions", refaire=user_input["action"] == "refaire"):
+                return self.async_abort(reason="tableau_impossible")
+            return self.async_create_entry(data={**self.config_entry.options, "tableau": True})
+        return self.async_show_form(step_id="init", data_schema=schema)

@@ -15,10 +15,11 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, EVENT_ACHAT, FABRICANT
+from . import tableau
+from .const import DOMAIN, EVENT_ACHAT, EVENT_PROFIL_BLOQUE, FABRICANT
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON, Platform.NUMBER]
 INTERVALLE = timedelta(seconds=60)
 
 
@@ -71,14 +72,23 @@ class RevisionsApi:
     async def achat_fait(self, achat_id: int) -> Any:
         return await self._post(f"/api/achat/{int(achat_id)}/statut", {"statut": "fait"})
 
+    async def temps_en_plus(self, enfant: str, minutes: int) -> Any:
+        """Du temps en plus pour aujourd'hui (Révisions 0.7+)."""
+        return await self._post(f"/api/parent/temps/{enfant}/bonus", {"minutes": int(minutes)})
+
+    async def limite(self, enfant: str, minutes: int | None) -> Any:
+        """Temps par jour de cet enfant (minutes, 0 = sans limite ; Révisions 0.7+)."""
+        return await self._post(f"/api/parent/joueur/{enfant}/temps_max", {"minutes": minutes})
+
 
 class RevisionsCoordinator(DataUpdateCoordinator[dict]):
-    """Relit Révisions toutes les minutes ; prévient (événement) quand un enfant achète un lot."""
+    """Relit Révisions toutes les minutes ; prévient (événements) quand un enfant achète un lot ou bloque un profil."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: RevisionsApi) -> None:
         super().__init__(hass, _LOGGER, config_entry=entry, name=DOMAIN, update_interval=INTERVALLE)
         self.api = api
         self._achats_vus: set[int] | None = None
+        self._blocages: dict[str, int] | None = None
 
     async def _async_update_data(self) -> dict:
         try:
@@ -94,6 +104,14 @@ class RevisionsCoordinator(DataUpdateCoordinator[dict]):
                 if a["id"] not in self._achats_vus:
                     self.hass.bus.async_fire(EVENT_ACHAT, {k: a.get(k) for k in ("id", "enfant", "enfant_nom", "nom", "ico", "prix", "type", "ts")})
         self._achats_vus = ids
+        # code secret raté 3 fois : le profil est bloqué quelques minutes (quelqu'un essaie le profil d'un autre ?)
+        blocages = {k: int(v.get("profil_blocages_jour") or 0) for k, v in (donnees.get("enfants") or {}).items()}
+        if self._blocages is not None:
+            for k, n in blocages.items():
+                if n > self._blocages.get(k, 0):
+                    e = donnees["enfants"][k]
+                    self.hass.bus.async_fire(EVENT_PROFIL_BLOQUE, {"enfant": k, "enfant_nom": e.get("nom", k), "blocages_jour": n, "ts": e.get("profil_dernier_blocage")})
+        self._blocages = blocages
         return donnees
 
     def enfants(self) -> dict[str, dict]:
@@ -123,6 +141,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: RevisionsConfigEntry) ->
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     relier()
     entry.async_on_unload(coordinator.async_add_listener(relier))   # joueur ajouté plus tard
+    if entry.options.get("tableau"):   # tableau de bord « Révisions » demandé dans Configurer
+        await tableau.afficher(hass, entry, "Révisions")
+    vu: dict[str, Any] = {}
+
+    @callback
+    def suivre_tableau() -> None:
+        """Joueur, bonus / malus ou temps qui change (et au démarrage, après une mise à jour) : le tableau suit."""
+        k = tableau.cle(coordinator)
+        if vu.get("cle") != k:
+            vu["cle"] = k
+            entry.async_create_background_task(hass, tableau.mettre_a_jour(hass, entry), "revisions_tableau")
+
+    suivre_tableau()
+    entry.async_on_unload(coordinator.async_add_listener(suivre_tableau))
     return True
 
 
@@ -135,4 +167,6 @@ async def async_remove_config_entry_device(hass: HomeAssistant, entry: Revisions
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: RevisionsConfigEntry) -> bool:
+    if entry.options.get("tableau"):
+        tableau.masquer(hass)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

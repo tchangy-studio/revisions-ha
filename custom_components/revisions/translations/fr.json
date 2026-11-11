@@ -36,5 +36,28 @@
       "reauth_successful": "Jeton mis à jour.",
       "reconfigure_successful": "Réglages mis à jour."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tableau de bord Révisions",
+        "description": "Un tableau de bord « Révisions » dans la barre latérale : une colonne par joueur (révisions du jour, récré, tirelire, boutons bonus et malus), les lots à préparer et le classement de la semaine. Il reste modifiable comme n'importe quel tableau de bord. « Refaire » le remet à jour après l'ajout d'un joueur ou d'un bonus / malus (et efface tes modifications). Il existe aussi en modèle à coller : fichier tableau.yaml de l'intégration.",
+        "data": {
+          "action": "Que faire ?"
+        }
+      }
+    },
+    "abort": {
+      "tableau_impossible": "Home Assistant n'a pas permis de créer le tableau de bord (version différente ?). Utilise le modèle à coller : fichier tableau.yaml de l'intégration, voir le README."
+    }
+  },
+  "selector": {
+    "action_tableau": {
+      "options": {
+        "afficher": "Afficher dans la barre latérale",
+        "refaire": "Refaire (nouveaux joueurs, bonus ou malus)",
+        "retirer": "Retirer de la barre latérale"
+      }
+    }
   }
 }

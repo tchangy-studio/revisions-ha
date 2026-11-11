@@ -36,5 +36,28 @@
       "reauth_successful": "Token updated.",
       "reconfigure_successful": "Settings updated."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Révisions dashboard",
+        "description": "A « Révisions » dashboard in the sidebar: one column per player (today's revisions, break, piggy bank, bonus and penalty buttons), rewards to prepare and the weekly ranking. You can edit it like any dashboard. « Rebuild » updates it after adding a player or a bonus / penalty (and discards your changes). It also exists as a template to paste: the integration's tableau.yaml file.",
+        "data": {
+          "action": "What to do?"
+        }
+      }
+    },
+    "abort": {
+      "tableau_impossible": "Home Assistant did not allow creating the dashboard (different version?). Use the template to paste: the integration's tableau.yaml file, see the README."
+    }
+  },
+  "selector": {
+    "action_tableau": {
+      "options": {
+        "afficher": "Show in the sidebar",
+        "refaire": "Rebuild (new players, bonus or penalties)",
+        "retirer": "Remove from the sidebar"
+      }
+    }
   }
 }

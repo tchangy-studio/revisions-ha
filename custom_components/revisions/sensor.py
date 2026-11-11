@@ -10,7 +10,8 @@ from .entity import RevisionsEntity
 
 RECRE = {"fermee": "fermée", "ouverte": "ouverte", "bonus": "bonus"}
 ATTRIBUTS = ("nom", "classe", "avatar", "niveau", "xp_total", "xp_semaine", "xp_revisions_jour", "xp_max_jour",
-             "objectif_recre", "recre", "recre_restante_min", "gagne_jour", "dernier")
+             "objectif_recre", "recre", "recre_restante_min", "gagne_jour", "dernier",
+             "temps_utilise_min", "temps_max_min", "temps_restant_min", "temps_raison")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: RevisionsConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -22,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RevisionsConfigEntry, as
     def ajouter() -> None:   # un enfant ajouté dans Révisions apparaît tout seul
         nouveaux = [e for e in coordinator.enfants() if e not in connus]
         connus.update(nouveaux)
-        async_add_entities([cls(coordinator, e) for e in nouveaux for cls in (PiecesSensor, RevisionsJourSensor, RecreSensor, NiveauSensor)])
+        async_add_entities([cls(coordinator, e) for e in nouveaux for cls in (PiecesSensor, RevisionsJourSensor, RecreSensor, NiveauSensor, TempsSensor, TempsRestantSensor)])
 
     ajouter()
     entry.async_on_unload(coordinator.async_add_listener(ajouter))
@@ -96,6 +97,42 @@ class NiveauSensor(RevisionsEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {"avatar": self.infos.get("avatar"), "xp_total": self.infos.get("xp_total"), "classe": self.infos.get("classe")}
+
+
+class TempsSensor(RevisionsEntity, SensorEntity):
+    """Temps passé dans l'appli aujourd'hui (Révisions 0.7+)."""
+    _attr_name = "temps aujourd'hui"
+    _attr_icon = "mdi:timer-sand"
+    _attr_native_unit_of_measurement = "min"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: RevisionsCoordinator, enfant: str) -> None:
+        super().__init__(coordinator, enfant, "temps")
+
+    @property
+    def native_value(self):
+        return self.infos.get("temps_utilise_min")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        i = self.infos
+        return {"maximum": i.get("temps_max_min"), "restant": i.get("temps_restant_min"), "dont_en_plus": i.get("temps_bonus_min"),
+                "fini": i.get("temps_bloque"), "raison": {"temps": "temps écoulé", "plage": "hors des heures d'ouverture"}.get(i.get("temps_raison")),
+                "code_secret": i.get("code_actif"), "profil_bloque": i.get("profil_bloque"), "profil_blocages_jour": i.get("profil_blocages_jour")}
+
+
+class TempsRestantSensor(RevisionsEntity, SensorEntity):
+    """Minutes qui restent aujourd'hui (vide quand il n'y a pas de limite)."""
+    _attr_name = "temps restant"
+    _attr_icon = "mdi:timer-outline"
+    _attr_native_unit_of_measurement = "min"
+
+    def __init__(self, coordinator: RevisionsCoordinator, enfant: str) -> None:
+        super().__init__(coordinator, enfant, "temps_restant")
+
+    @property
+    def native_value(self):
+        return self.infos.get("temps_restant_min")
 
 
 class AchatsSensor(RevisionsEntity, SensorEntity):

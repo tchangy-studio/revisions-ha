@@ -1,0 +1,60 @@
+# Révisions (Tchangy Studio) — tableau de bord à coller, uniquement avec des cartes de base de Home Assistant.
+# Paramètres → Tableaux de bord → Ajouter → Partir de zéro, puis ⋮ → Modifier → ⋮ → Éditeur de configuration brute, et coller.
+# Les cartes trouvent toutes seules les joueurs (aucun nom d'entité à adapter). Les boutons bonus / malus de chaque joueur
+# sont sur sa page (Paramètres → Appareils → « Révisions <prénom> ») ; le tableau créé par Configurer → Tableau de bord
+# les met directement sous chaque joueur.
+views:
+  - title: Révisions
+    path: revisions
+    icon: mdi:school
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Les joueurs
+            icon: mdi:school
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |-
+              {%- set joueurs = expand(integration_entities('revisions') | select('match', 'sensor\.') | list)
+                 | selectattr('attributes.xp_revisions_jour', 'defined') | sort(attribute='attributes.nom') | list -%}
+              {%- for j in joueurs %}
+              {%- set a = j.attributes %}{% set x = a.xp_revisions_jour | int(0) %}{% set mx = a.xp_max_jour | int(200) %}
+              {%- set n = [10, (10 * x / mx) | int] | min if mx else 0 %}
+
+              ## {{ a.avatar }} {{ a.nom }} · niveau {{ a.niveau }}
+              **Révisions du jour** : {{ x }} / {{ mx }} XP {{ '🟩' * n }}{{ '⬜' * (10 - n) }}<br>
+              🎮 **Récré** : {% if a.recre == 'fermee' %}encore {{ a.objectif_recre | int(0) - x }} XP{% elif a.recre_restante_min | int(0) <= 0 %}finie pour aujourd'hui{% else %}{{ 'ouverte + bonus 🎉' if a.recre == 'bonus' else 'ouverte' }} · {{ a.recre_restante_min }} min restantes{% endif %}<br>
+              🐷 **Tirelire** : {{ j.state }} pièces (+{{ a.gagne_jour }} aujourd'hui){% if a.dernier %}<br>
+              🕑 {{ a.dernier.raison }} ({{ '+' if a.dernier.delta > 0 else '' }}{{ a.dernier.delta }} XP){% endif %}
+              {%- else %}
+              Aucun joueur pour l'instant (ou Révisions est injoignable).
+              {%- endfor %}
+      - type: grid
+        cards:
+          - type: heading
+            heading: Lots à préparer
+            icon: mdi:gift
+          - type: markdown
+            content: |-
+              {%- set c = expand(integration_entities('revisions') | select('match', 'sensor\.') | list)
+                 | selectattr('attributes.achats_en_attente', 'defined') | first -%}
+              {%- for a in (c.attributes.achats_en_attente if c else []) or [] %}
+              - {{ a.ico }} **{{ a.nom }}** pour {{ a.enfant_nom }} · {{ a.prix }} pièces · {{ a.ts[8:10] }}/{{ a.ts[5:7] }}
+              {%- else %}
+              Rien à préparer 🎉
+              {%- endfor %}
+          - type: heading
+            heading: Classement de la semaine
+            icon: mdi:podium
+          - type: markdown
+            content: |-
+              {%- set c = expand(integration_entities('revisions') | select('match', 'sensor\.') | list)
+                 | selectattr('attributes.podium', 'defined') | first -%}
+              {%- for p in (c.attributes.podium if c else []) or [] %}
+              {{ ['🥇', '🥈', '🥉'][loop.index0] if loop.index0 < 3 else '▫️' }} {{ p.avatar }} {{ p.nom }} : {{ p.xp_semaine }} XP<br>
+              {%- endfor %}

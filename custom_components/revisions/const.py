@@ -1,4 +1,5 @@
 """Constantes de l'intégration Révisions."""
 DOMAIN = "revisions"
 EVENT_ACHAT = "revisions_nouvel_achat"
+EVENT_PROFIL_BLOQUE = "revisions_profil_bloque"
 FABRICANT = "Tchangy Studio"
