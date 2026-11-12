@@ -1,4 +1,5 @@
-"""Boutons : un par comportement et par enfant (bonus / malus), plus « lot le plus ancien donné »."""
+"""Boutons : un par comportement et par enfant (bonus / malus), 15 minutes de plus, débloquer le profil,
+plus « lot le plus ancien donné »."""
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
@@ -23,7 +24,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: RevisionsConfigEntry, as
         connus.update(nouveaux)
         enfants = [e for e in coordinator.enfants() if e not in enfants_vus]
         enfants_vus.update(enfants)
-        async_add_entities([ComportementButton(coordinator, e, code) for e, code in nouveaux] + [TempsEnPlusButton(coordinator, e) for e in enfants])
+        async_add_entities([ComportementButton(coordinator, e, code) for e, code in nouveaux] + [TempsEnPlusButton(coordinator, e) for e in enfants]
+                           + [DebloquerProfilButton(coordinator, e) for e in enfants])
 
     ajouter()
     entry.async_on_unload(coordinator.async_add_listener(ajouter))
@@ -72,6 +74,27 @@ class TempsEnPlusButton(RevisionsEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         await self.coordinator.api.temps_en_plus(self.enfant, 15)
+        await self.coordinator.async_request_refresh()
+
+
+class DebloquerProfilButton(RevisionsEntity, ButtonEntity):
+    """Rouvre le profil bloqué après trop d'erreurs de code secret, sans attendre la fin du délai (Révisions 0.7.7+)."""
+    _attr_name = "Débloquer le profil"
+    _attr_icon = "mdi:lock-open-variant-outline"
+
+    def __init__(self, coordinator: RevisionsCoordinator, enfant: str) -> None:
+        super().__init__(coordinator, enfant, "debloquer_profil")
+
+    @property
+    def available(self) -> bool:   # serveur sans code secret (avant 0.7) : rien à débloquer
+        return super().available and "profil_bloque" in self.infos
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"profil_bloque": bool(self.infos.get("profil_bloque")), "blocages_jour": self.infos.get("profil_blocages_jour")}
+
+    async def async_press(self) -> None:
+        await self.coordinator.api.debloquer_profil(self.enfant)
         await self.coordinator.async_request_refresh()
 
 

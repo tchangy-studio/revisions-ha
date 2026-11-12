@@ -56,6 +56,16 @@ async def test_profil_bloque_evenement(hass: HomeAssistant, aioclient_mock):
     assert len(evts) == 1
 
 
+async def test_debloquer_profil(hass: HomeAssistant, aioclient_mock):
+    await installer(hass, aioclient_mock)
+    b = hass.states.get("button.revisions_zoe_debloquer_le_profil")
+    assert b is not None and b.state != "unavailable" and b.attributes["profil_bloque"] is False
+    aioclient_mock.post(URL + "/api/parent/profil/zoe/debloquer", json={"ok": True})
+    await hass.services.async_call("button", "press", {"entity_id": "button.revisions_zoe_debloquer_le_profil"}, blocking=True)
+    posts = [(str(c[1]), c[2]) for c in aioclient_mock.mock_calls if c[0] == "POST"]
+    assert (URL + "/api/parent/profil/zoe/debloquer", {}) in posts
+
+
 async def test_serveur_ancien_sans_temps(hass: HomeAssistant, aioclient_mock):
     """Révisions avant 0.7 : pas de temps, rien ne casse (entités vides ou indisponibles)."""
     vieux = copy.deepcopy(HA); vieux.pop("temps")
@@ -68,3 +78,4 @@ async def test_serveur_ancien_sans_temps(hass: HomeAssistant, aioclient_mock):
     assert hass.states.get("sensor.revisions_zoe_temps_aujourd_hui").state == "unknown"
     assert hass.states.get("number.revisions_zoe_temps_par_jour").state == "unavailable"
     assert hass.states.get("button.revisions_zoe_15_minutes_de_plus").state == "unavailable"
+    assert hass.states.get("button.revisions_zoe_debloquer_le_profil").state == "unavailable"

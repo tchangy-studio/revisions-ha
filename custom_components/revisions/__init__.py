@@ -86,6 +86,10 @@ class RevisionsApi:
         """Du temps en plus pour aujourd'hui (Révisions 0.7+)."""
         return await self._post(f"/api/parent/temps/{enfant}/bonus", {"minutes": int(minutes)})
 
+    async def debloquer_profil(self, enfant: str) -> Any:
+        """Rouvre un profil bloqué après trop d'erreurs de code secret (Révisions 0.7.7+)."""
+        return await self._post(f"/api/parent/profil/{enfant}/debloquer", {})
+
     async def limite(self, enfant: str, minutes: int | None) -> Any:
         """Temps par jour de cet enfant (minutes, 0 = sans limite ; Révisions 0.7+)."""
         return await self._post(f"/api/parent/joueur/{enfant}/temps_max", {"minutes": minutes})

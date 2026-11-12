@@ -69,6 +69,7 @@ Un appareil par enfant (les comptes de test sont ignorés) :
 | `sensor.revisions_<prénom>_temps_restant` | minutes qui restent aujourd'hui (vide s'il n'y a pas de limite) |
 | `number.revisions_<prénom>_temps_par_jour` | temps par jour de cet enfant, en minutes (0 = sans limite) |
 | `button.revisions_<prénom>_15_minutes_de_plus` | 15 minutes de plus pour aujourd'hui |
+| `button.revisions_<prénom>_debloquer_le_profil` | rouvre le profil bloqué après trop d'erreurs de code secret (attribut `profil_bloque`) ; Révisions 0.7.7+ |
 | `button.revisions_<prénom>_<comportement>` | un bouton par comportement réglé dans l'espace parents (bonus ou malus) |
 
 Et un appareil **Révisions** :

@@ -4,7 +4,7 @@ import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import async_capture_events, async_fire_time_changed
 from homeassistant.util import dt as dt_util
 from datetime import timedelta
@@ -34,6 +34,12 @@ async def installer(hass, aioclient_mock):
     await hass.async_block_till_done()
     return r["result"]
 
+
+
+def appareil(reg, identifiant):
+    """Appareil par identifiant, sans dépendre de la version de HA (async_get_device est déprécié depuis 2026.10)."""
+    entree = identifiant[1].split("_", 1)[0]   # identifiant = (domaine, "<entry_id>" ou "<entry_id>_<joueur>")
+    return next((d for d in dr.async_entries_for_config_entry(reg, entree) if identifiant in d.identifiers), None)
 
 async def test_entites(hass: HomeAssistant, aioclient_mock):
     await installer(hass, aioclient_mock)
@@ -107,6 +113,7 @@ async def test_jeton_envoye_et_erreurs_claires(hass: HomeAssistant, aioclient_mo
         assert r.get("errors") == {"base": attendu}, r
 
 
+@pytest.mark.parametrize("expected_lingering_tasks", [True])   # la mise à jour différée du tableau peut rester en attente
 async def test_jeton_change_redemande(hass: HomeAssistant, aioclient_mock):
     entry = await installer(hass, aioclient_mock)
     aioclient_mock.clear_requests()
@@ -126,15 +133,15 @@ async def test_appareils_ranges_sous_revisions(hass: HomeAssistant, aioclient_mo
     from homeassistant.helpers import device_registry as dr
     entry = await installer(hass, aioclient_mock)
     reg = dr.async_get(hass)
-    maison = reg.async_get_device(identifiers={("revisions", entry.entry_id)})
-    raph = reg.async_get_device(identifiers={("revisions", f"{entry.entry_id}_raph")})
+    maison = appareil(reg, ("revisions", entry.entry_id))
+    raph = appareil(reg, ("revisions", f"{entry.entry_id}_raph"))
     assert maison and raph and raph.via_device_id == maison.id
     serveur(aioclient_mock, ha={**HA, "enfants": {**HA["enfants"], "zoe": {**ENFANT, "nom": "Zoé"}}})
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done()
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=122))
     await hass.async_block_till_done()
-    zoe = reg.async_get_device(identifiers={("revisions", f"{entry.entry_id}_zoe")})
+    zoe = appareil(reg, ("revisions", f"{entry.entry_id}_zoe"))
     assert zoe and zoe.via_device_id == maison.id
 
 
@@ -144,8 +151,8 @@ async def test_supprimer_un_joueur_parti(hass: HomeAssistant, aioclient_mock):
     from custom_components.revisions import async_remove_config_entry_device
     entry = await installer(hass, aioclient_mock)
     reg = dr.async_get(hass)
-    maison = reg.async_get_device(identifiers={("revisions", entry.entry_id)})
-    raph = reg.async_get_device(identifiers={("revisions", f"{entry.entry_id}_raph")})
+    maison = appareil(reg, ("revisions", entry.entry_id))
+    raph = appareil(reg, ("revisions", f"{entry.entry_id}_raph"))
     assert not await async_remove_config_entry_device(hass, entry, raph)
     assert not await async_remove_config_entry_device(hass, entry, maison)
     serveur(aioclient_mock, ha={**HA, "enfants": {"papa": HA["enfants"]["papa"]}})
