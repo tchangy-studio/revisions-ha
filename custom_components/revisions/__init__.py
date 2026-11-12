@@ -19,7 +19,7 @@ from . import tableau
 from .const import DOMAIN, EVENT_ACHAT, EVENT_PROFIL_BLOQUE, FABRICANT
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.SENSOR, Platform.BUTTON, Platform.NUMBER]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.UPDATE]
 INTERVALLE = timedelta(seconds=60)
 
 
@@ -64,7 +64,17 @@ class RevisionsApi:
     async def lire(self) -> dict:
         resume = await self._get("/api/ha")
         comportements = await self._get("/api/comportements")
-        return {**resume, "comportements": comportements}
+        try:   # mise à jour en un clic (Révisions 0.7.1+) ; absente d'une version plus ancienne
+            maj = await self._get("/api/parent/maj")
+        except Exception:  # noqa: BLE001 — facultatif : jamais bloquant pour le reste
+            maj = None
+        return {**resume, "comportements": comportements, "maj": maj}
+
+    async def maj(self) -> dict:
+        return await self._get("/api/parent/maj")
+
+    async def lancer_maj(self) -> Any:
+        return await self._post("/api/parent/maj", {})
 
     async def comportement(self, enfant: str, code: str) -> Any:
         return await self._post("/api/comportement", {"enfant": enfant, "code": code})

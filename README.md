@@ -77,6 +77,7 @@ Et un appareil **Révisions** :
 |---|---|
 | `sensor.revisions_achats_en_attente` | nombre de lots à préparer, liste détaillée et classement de la semaine en attributs |
 | `button.revisions_lot_le_plus_ancien_donne` | marque le plus ancien achat comme donné |
+| `update.revisions_mise_a_jour` | version de Révisions installée et dernière version : la mise à jour apparaît dans **Paramètres → Mises à jour**, avec ses nouveautés et le bouton « Installer » (Révisions 0.7.1+) |
 
 Un enfant ou un comportement ajouté dans Révisions apparaît tout seul dans Home Assistant (en moins d'une minute) ;
 un comportement supprimé rend son bouton indisponible. Le temps d'utilisation demande Révisions 0.7 ou plus récent
